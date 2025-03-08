@@ -1,0 +1,46 @@
+# services
+services:
+  app:
+    container_name: ${APP_NAME}-app
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${ENVIRONMENT:-production} # Set to production by default
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${BACKEND_URI:-http://backend:8000} # Use the service name "backend" for cross-service communication within the Docker network
+    restart: unless-stopped # Automatic restart unless explicitly stopped
+    env_file:
+      - .env
+    network_mode: host
+
+  db:
+    container_name: ${APP_NAME}-db
+    image: mysql:9.0.1
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-postgres}
+      MYSQL_DATABASE: ${MYSQL_DB_NAME:-postgres}
+      MYSQL_USER: ${MYSQL_DB_USER:-postgres}
+      MYSQL_PASSWORD: ${MYSQL_DB_PASSWORD:-postgres}
+      MYSQL_ROOT_HOST: "%"
+    command: >
+      --general-log=1
+      --general-log-file=/var/lib/mysql/general.log
+      --log-raw=ON
+      --log-error=/var/lib/mysql/error.log
+      --slow-query-log=ON
+      --slow-query-log-file=/var/lib/mysql/slow.log
+      --long_query_time=1
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    restart: always # Automatic restart to maintain availability
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+    network_mode: host
